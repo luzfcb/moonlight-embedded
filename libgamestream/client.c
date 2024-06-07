@@ -405,7 +405,8 @@ static void decrypt(const unsigned char *ciphertext, int ciphertextLen, const un
   EVP_CIPHER_CTX_free(cipher);
 }
 
-int gs_unpair(PSERVER_DATA server) {
+int gs_unpair(PSERVER_DATA server)
+{
   int ret = GS_OK;
   char url[4096];
   uuid_t uuid;
@@ -416,9 +417,37 @@ int gs_unpair(PSERVER_DATA server) {
 
   uuid_generate_random(uuid);
   uuid_unparse(uuid, uuid_str);
-  snprintf(url, sizeof(url), "http://%s:%u/unpair?uniqueid=%s&uuid=%s", server->serverInfo.address, server->httpPort, unique_id, uuid_str);
+  snprintf(url, sizeof(url), "http://%s:%u/unpair?uniqueid=%s&uuid=%s", server->serverInfo.address, server->httpPort,
+           unique_id, uuid_str);
   ret = http_request(url, data);
 
+  if (ret != GS_OK)
+  {
+    gs_error = "Failed to send unpair request";
+    goto cleanup;
+  }
+
+  if (xml_status(data->memory, data->size) == GS_ERROR)
+  {
+    gs_error = "Failed to parse unpair response";
+    ret = GS_ERROR;
+    goto cleanup;
+  }
+
+  if (xml_search(data->memory, data->size, "unpaired", &url) != GS_OK)
+  {
+    gs_error = "Failed to find unpaired tag in response";
+    ret = GS_ERROR;
+    goto cleanup;
+  }
+
+  if (strcmp(url, "1") != 0)
+  {
+    gs_error = "Unexpected response: unpairing failed";
+    ret = GS_FAILED;
+  }
+
+cleanup:
   http_free_data(data);
   return ret;
 }
@@ -623,7 +652,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
   else if ((ret = xml_search(data->memory, data->size, "paired", &result)) != GS_OK)
     goto cleanup;
 
-  if (strcmp(result, "1") != 0) {
+  if (strcmp(result, "1") != GS_OK) {
     gs_error = "Pairing failed";
     ret = GS_FAILED;
     goto cleanup;
@@ -642,7 +671,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
   else if ((ret = xml_search(data->memory, data->size, "paired", &result)) != GS_OK)
     goto cleanup;
 
-  if (strcmp(result, "1") != 0) {
+  if (strcmp(result, "1") != GS_OK) {
     gs_error = "Pairing failed";
     ret = GS_FAILED;
     goto cleanup;
