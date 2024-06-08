@@ -412,6 +412,7 @@ int gs_unpair(PSERVER_DATA server)
   uuid_t uuid;
   char uuid_str[UUID_STRLEN];
   PHTTP_DATA data = http_create_data();
+  char* unpair_result = NULL;
   if (data == NULL)
     return GS_OUT_OF_MEMORY;
 
@@ -434,20 +435,24 @@ int gs_unpair(PSERVER_DATA server)
     goto cleanup;
   }
 
-  if (xml_search(data->memory, data->size, "unpaired", &url) != GS_OK)
+  if (xml_search(data->memory, data->size, "unpaired", &unpair_result) != GS_OK)
   {
     gs_error = "Failed to find unpaired tag in response";
     ret = GS_ERROR;
     goto cleanup;
   }
 
-  if (strcmp(url, "1") != 0)
+  if (strcmp(unpair_result, "1") != 0)
   {
     gs_error = "Unexpected response: unpairing failed";
     ret = GS_FAILED;
   }
 
 cleanup:
+  if (unpair_result != NULL)
+  {
+    free(unpair_result);
+  }
   http_free_data(data);
   return ret;
 }
